@@ -1,0 +1,67 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+
+  app:
+    build:
+      context: ./app
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      # In case your code uses SQLALCHEMY_DATABASE_URI:
+      SQLALCHEMY_DATABASE_URI: "mysql://root:root@db/myflaskapp"
+    expose:
+      - "5000"
+
+  nginx:
+    image: nginx:stable
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: unless-stopped
+    command: ["--path.rootfs=/host"]
+    pid: "host"
+    volumes:
+      - /:/host:ro,rslave
+    ports:
+      - "9100:9100"
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    depends_on:
+      - node-exporter
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+volumes:
+  db_data:
