@@ -1,0 +1,6 @@
+Flask==2.3.3
+flask-cors
+Flask-MySQLdb
+Flask-SQLAlchemy
+gunicorn
+mysqlclient
